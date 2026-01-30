@@ -1,0 +1,14 @@
+.env
+.env.*
+.idea
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.DS_Store
+.ruff_cache
+dist
+build

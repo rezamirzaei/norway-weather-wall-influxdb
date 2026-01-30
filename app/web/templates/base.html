@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title or "InfluxDB Metrics" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    <header class="header">
+      <div class="container">
+        <div class="brand">InfluxDB Metrics</div>
+        <nav>
+          <a href="/ui/weather">Weather</a>
+          <a href="/ui/dashboard">Metrics</a>
+          {% if user %}
+            <span class="muted">Signed in as {{ user.username }}</span>
+            <a href="/ui/logout">Logout</a>
+          {% else %}
+            <a href="/ui/login">Login</a>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      {% if message %}
+        <div class="alert alert-ok">{{ message }}</div>
+      {% endif %}
+      {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+      <div class="container">Demo UI • Server-rendered MVC views</div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

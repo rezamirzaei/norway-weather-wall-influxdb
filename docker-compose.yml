@@ -1,0 +1,44 @@
+services:
+  influxdb:
+    image: influxdb:2
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-change_me}
+      DOCKER_INFLUXDB_INIT_ORG: ${APP_INFLUX_ORG:-demo}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${APP_INFLUX_BUCKET:-metrics}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${APP_INFLUX_TOKEN:-change_me_to_a_long_random_token}
+    healthcheck:
+      test: ["CMD", "influx", "ping", "--host", "http://localhost:8086"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change_me_to_a_long_random_secret_key_32_chars_min}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_INFLUX_URL: http://influxdb:8086
+      APP_INFLUX_ORG: ${APP_INFLUX_ORG:-demo}
+      APP_INFLUX_BUCKET: ${APP_INFLUX_BUCKET:-metrics}
+      APP_INFLUX_TOKEN: ${APP_INFLUX_TOKEN:-change_me_to_a_long_random_token}
+      APP_WEATHER_USER_AGENT: "${APP_WEATHER_USER_AGENT:-influx-db-demo/0.1 (contact: you@example.com)}"
+      APP_WEATHER_FETCH_ON_LOGIN: ${APP_WEATHER_FETCH_ON_LOGIN:-true}
+      APP_WEATHER_BACKGROUND_REFRESH_ENABLED: ${APP_WEATHER_BACKGROUND_REFRESH_ENABLED:-true}
+      APP_WEATHER_BACKGROUND_REFRESH_INTERVAL_SECONDS: ${APP_WEATHER_BACKGROUND_REFRESH_INTERVAL_SECONDS:-1}
+      APP_WEATHER_MIN_REFRESH_INTERVAL_SECONDS: ${APP_WEATHER_MIN_REFRESH_INTERVAL_SECONDS:-300}
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
+volumes:
+  influxdb-data:

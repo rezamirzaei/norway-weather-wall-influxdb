@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+{% endblock %}
+
+{% block content %}
+  <div class="grid">
+    <section class="card">
+      <h2>Norwegian Cities • Latest Weather</h2>
+      <p class="muted">Source: MET Norway Locationforecast (compact)</p>
+
+      <form method="post" action="/ui/weather/refresh">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <div class="actions">
+          <button type="submit">Refresh now</button>
+          <span id="weather-live-status" class="muted">Live: starting…</span>
+          <span class="muted">Last update: <span id="weather-updated-at">—</span></span>
+        </div>
+      </form>
+
+      <div
+        id="weather-map"
+        class="map"
+        aria-label="Weather map"
+        data-poll-url="/ui/weather/latest.json"
+        data-poll-interval-ms="1000"
+      ></div>
+      <p class="muted" style="margin-top: 10px;">Tip: click a marker to see details.</p>
+    </section>
+
+    <section class="card">
+      <h2>Table</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>City</th>
+            <th>Temp (°C)</th>
+            <th>Humidity (%)</th>
+            <th>Wind (m/s)</th>
+            <th>Pressure (hPa)</th>
+            <th>Precip 1h (mm)</th>
+            <th>Symbol</th>
+            <th>Timestamp (UTC)</th>
+          </tr>
+        </thead>
+        <tbody id="weather-table-body">
+          {% if rows and rows|length > 0 %}
+            {% for r in rows %}
+              <tr>
+                <td>{{ r.city }}</td>
+                <td>{{ r.air_temperature }}</td>
+                <td>{{ r.relative_humidity }}</td>
+                <td>{{ r.wind_speed }}</td>
+                <td>{{ r.air_pressure_at_sea_level }}</td>
+                <td>{{ r.precipitation_amount_1h }}</td>
+                <td>{{ r.symbol_code }}</td>
+                <td>{{ r.timestamp.isoformat() }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="muted">Waiting for first data point…</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    window.WEATHER_ROWS = {{ rows_payload | tojson }};
+  </script>
+  <script src="{{ url_for('static', path='weather_map.js') }}"></script>
+{% endblock %}

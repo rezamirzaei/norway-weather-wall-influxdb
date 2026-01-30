@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% if influx_error %}
+    <div class="alert alert-error">{{ influx_error }}</div>
+  {% endif %}
+
+  <div class="grid">
+    <section class="card">
+      <h2>Write metric</h2>
+      <form method="post" action="/ui/measurements">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+        <div class="row">
+          <div>
+            <label for="device_id">Device ID</label>
+            <input id="device_id" name="device_id" value="{{ device_id }}" required />
+          </div>
+          <div>
+            <label for="metric">Metric</label>
+            <input id="metric" name="metric" value="{{ metric }}" required />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="value">Value</label>
+            <input id="value" name="value" type="number" step="any" placeholder="e.g. 21.5" required />
+          </div>
+          <div>
+            <label for="limit">Show last N</label>
+            <input id="limit" name="limit" type="number" value="{{ limit }}" disabled />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Write</button>
+          <span class="muted">Writes into InfluxDB measurement <code>device_metrics</code></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Last hour summary</h2>
+      <p class="muted">
+        Device <strong>{{ device_id }}</strong>, metric <strong>{{ metric }}</strong>
+      </p>
+      {% if summary %}
+        <table>
+          <tbody>
+            <tr><th>Count</th><td>{{ summary.count }}</td></tr>
+            <tr><th>Min</th><td>{{ summary.min }}</td></tr>
+            <tr><th>Max</th><td>{{ summary.max }}</td></tr>
+            <tr><th>Avg</th><td>{{ summary.avg }}</td></tr>
+            <tr><th>From</th><td>{{ start.isoformat() }}</td></tr>
+            <tr><th>To</th><td>{{ stop.isoformat() }}</td></tr>
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No data yet (or Influx is down).</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Recent points</h2>
+    <p class="muted">
+      Tip: change device/metric via the URL:
+      <code>/ui/dashboard?device_id=device-1&amp;metric=temperature</code>
+    </p>
+
+    {% if records and records|length > 0 %}
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+            <tr>
+              <td>{{ r.timestamp.isoformat() }}</td>
+              <td>{{ r.value }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No points yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="grid">
+    <section class="card">
+      <h2>Login</h2>
+      <p class="muted">Use the admin credentials from your environment.</p>
+
+      <form method="post" action="/ui/login">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+
+        <div class="row">
+          <div>
+            <label for="username">Username</label>
+            <input id="username" name="username" autocomplete="username" required />
+          </div>
+          <div>
+            <label for="password">Password</label>
+            <input id="password" type="password" name="password" autocomplete="current-password" required />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit">Sign in</button>
+          <span class="muted">Default: admin / change_me</span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h3>What is this?</h3>
+      <p class="muted">
+        A tiny operations dashboard for writing/querying time-series device metrics stored in InfluxDB.
+      </p>
+      <p class="muted">
+        Use the REST API for automation, and this UI for quick manual inspection.
+      </p>
+    </section>
+  </div>
+{% endblock %}
+
