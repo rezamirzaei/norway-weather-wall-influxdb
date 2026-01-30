@@ -124,6 +124,7 @@ table {
   border-collapse: collapse;
   margin-top: 10px;
   font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
 }
 th, td {
   text-align: left;
@@ -144,4 +145,50 @@ th { color: var(--muted); font-weight: 600; }
 
 .leaflet-container {
   background: #0b1228;
+}
+
+#weather-live-status,
+#weather-updated-at {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+#weather-live-status {
+  display: inline-block;
+  min-width: 14ch;
+}
+
+#weather-updated-at {
+  display: inline-block;
+  min-width: 20ch;
+}
+
+table.compact {
+  font-size: 0.85rem;
+}
+
+table.compact th,
+table.compact td {
+  padding: 8px 8px;
+}
+
+hr.divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+
+.chart {
+  height: 220px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0b1228;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.chart canvas {
+  width: 100% !important;
+  height: 100% !important;
 }

@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import WeatherReadUser, WeatherWriteUser, get_weather_service
-from app.schemas.weather import WeatherLatest, WeatherRefreshResponse
+from app.schemas.weather import (
+    WeatherLatest,
+    WeatherRefreshResponse,
+    WeatherTemperaturePoint,
+    WeatherTemperatureSummary,
+)
 from app.services.weather import WeatherIngestionService
 
 router = APIRouter(prefix="/weather")
@@ -47,3 +52,36 @@ def latest_weather(
             detail="InfluxDB unavailable",
         ) from e
     return [WeatherLatest.model_validate(r.__dict__) for r in rows]
+
+
+@router.get("/temperature/summary", response_model=list[WeatherTemperatureSummary])
+def temperature_summary(
+    _: WeatherReadUser,
+    service: Annotated[WeatherIngestionService, Depends(get_weather_service)],
+    hours: Annotated[int, Query(ge=1, le=24 * 14)] = 24,
+) -> list[WeatherTemperatureSummary]:
+    try:
+        rows = service.temperature_summary(hours=hours)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="InfluxDB unavailable",
+        ) from e
+    return [WeatherTemperatureSummary.model_validate(r.__dict__) for r in rows]
+
+
+@router.get("/temperature/trend", response_model=list[WeatherTemperaturePoint])
+def temperature_trend(
+    _: WeatherReadUser,
+    service: Annotated[WeatherIngestionService, Depends(get_weather_service)],
+    hours: Annotated[int, Query(ge=1, le=24 * 2)] = 1,
+    window_seconds: Annotated[int, Query(ge=1, le=3600)] = 60,
+) -> list[WeatherTemperaturePoint]:
+    try:
+        rows = service.temperature_trend(hours=hours, window_seconds=window_seconds)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="InfluxDB unavailable",
+        ) from e
+    return [WeatherTemperaturePoint.model_validate(r.__dict__) for r in rows]

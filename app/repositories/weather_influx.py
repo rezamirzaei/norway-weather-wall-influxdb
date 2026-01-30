@@ -6,7 +6,7 @@ from typing import Any
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from app.models.weather import WeatherObservation
+from app.models.weather import WeatherObservation, WeatherTemperaturePoint, WeatherTemperatureSummary
 from app.repositories.flux import flux_str, to_rfc3339
 
 WEATHER_FIELDS = [
@@ -132,6 +132,117 @@ from(bucket: {flux_str(self._bucket)})
                 )
         return results
 
+    def query_temperature_series(
+        self,
+        *,
+        cities: list[str],
+        start: datetime,
+        stop: datetime,
+        window_seconds: int,
+    ) -> list[WeatherTemperaturePoint]:
+        if not cities:
+            return []
+
+        every = max(int(window_seconds), 1)
+        city_predicate = " or ".join([f'r["city"] == {flux_str(c)}' for c in cities])
+
+        query = f"""
+from(bucket: {flux_str(self._bucket)})
+  |> range(start: time(v: {flux_str(to_rfc3339(start))}), stop: time(v: {flux_str(to_rfc3339(stop))}))
+  |> filter(fn: (r) => r["_measurement"] == {flux_str(self._measurement)})
+  |> filter(fn: (r) => {city_predicate})
+  |> filter(fn: (r) => r["_field"] == "air_temperature")
+  |> group(columns: ["city"])
+  |> aggregateWindow(every: {every}s, fn: mean, createEmpty: false)
+  |> keep(columns: ["_time", "_value", "city"])
+  |> sort(columns: ["city", "_time"])
+"""
+
+        query_api = self._client.query_api()
+        tables = query_api.query(query=query, org=self._org)
+
+        results: list[WeatherTemperaturePoint] = []
+        for table in tables:
+            for record in table.records:
+                ts = record.get_time()
+                value = record.get_value()
+                city = record.values.get("city")
+                if ts is None or not isinstance(city, str) or value is None:
+                    continue
+                try:
+                    results.append(
+                        WeatherTemperaturePoint(
+                            city=city,
+                            timestamp=ts,
+                            value=float(value),
+                        )
+                    )
+                except Exception:
+                    continue
+        return results
+
+    def query_temperature_summary(
+        self, *, cities: list[str], start: datetime, stop: datetime
+    ) -> list[WeatherTemperatureSummary]:
+        if not cities:
+            return []
+
+        city_predicate = " or ".join([f'r["city"] == {flux_str(c)}' for c in cities])
+
+        query = f"""
+from(bucket: {flux_str(self._bucket)})
+  |> range(start: time(v: {flux_str(to_rfc3339(start))}), stop: time(v: {flux_str(to_rfc3339(stop))}))
+  |> filter(fn: (r) => r["_measurement"] == {flux_str(self._measurement)})
+  |> filter(fn: (r) => {city_predicate})
+  |> filter(fn: (r) => r["_field"] == "air_temperature")
+  |> group(columns: ["city"])
+  |> sort(columns: ["_time"])
+  |> keep(columns: ["_time", "_value", "city"])
+  |> reduce(
+    identity: {{city: "", count: 0, sum: 0.0, min: 0.0, max: 0.0, first: 0.0, last: 0.0}},
+    fn: (r, accumulator) => ({{
+	      city: r.city,
+	      count: accumulator.count + 1,
+	      sum: accumulator.sum + float(v: r._value),
+	      min: if accumulator.count == 0 or float(v: r._value) < accumulator.min then float(v: r._value) else accumulator.min,
+	      max: if accumulator.count == 0 or float(v: r._value) > accumulator.max then float(v: r._value) else accumulator.max,
+	      first: if accumulator.count == 0 then float(v: r._value) else accumulator.first,
+	      last: float(v: r._value),
+	    }}),
+	  )
+  |> map(fn: (r) => ({{ r with avg: if r.count == 0 then 0.0 else r.sum / float(v: r.count) }}))
+  |> keep(columns: ["city", "count", "min", "max", "avg", "first", "last"])
+  |> sort(columns: ["city"])
+"""
+
+        query_api = self._client.query_api()
+        tables = query_api.query(query=query, org=self._org)
+
+        results: list[WeatherTemperatureSummary] = []
+        for table in tables:
+            for record in table.records:
+                values: dict[str, Any] = record.values
+                city = values.get("city")
+                if not isinstance(city, str):
+                    continue
+                count = int(values.get("count", 0))
+                if count <= 0:
+                    continue
+                results.append(
+                    WeatherTemperatureSummary(
+                        city=city,
+                        start=start,
+                        stop=stop,
+                        count=count,
+                        min=_float_or_none(values.get("min")),
+                        max=_float_or_none(values.get("max")),
+                        avg=_float_or_none(values.get("avg")),
+                        first=_float_or_none(values.get("first")),
+                        last=_float_or_none(values.get("last")),
+                    )
+                )
+        return results
+
 
 def _float_or_none(v: Any) -> float | None:
     try:
@@ -157,4 +268,3 @@ def _str_or_none(v: Any) -> str | None:
     if isinstance(v, str):
         return v
     return str(v)
-

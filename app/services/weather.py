@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from app.clients.metno import MetNoClient
-from app.models.weather import City, WeatherObservation
+from app.models.weather import (
+    City,
+    WeatherObservation,
+    WeatherTemperaturePoint,
+    WeatherTemperatureSummary,
+)
 from app.repositories.weather import WeatherRepository
 
 NORWEGIAN_CITIES: list[City] = [
@@ -218,4 +223,26 @@ class WeatherIngestionService:
         stop = now
         return self._repo.query_latest(
             cities=[c.name for c in self._cities], start=start, stop=stop
+        )
+
+    def temperature_summary(self, *, hours: int) -> list[WeatherTemperatureSummary]:
+        hours = max(int(hours), 1)
+        now = datetime.now(tz=timezone.utc)
+        start = now - timedelta(hours=hours)
+        return self._repo.query_temperature_summary(
+            cities=[c.name for c in self._cities], start=start, stop=now
+        )
+
+    def temperature_trend(
+        self, *, hours: int, window_seconds: int
+    ) -> list[WeatherTemperaturePoint]:
+        hours = max(int(hours), 1)
+        window_seconds = max(int(window_seconds), 1)
+        now = datetime.now(tz=timezone.utc)
+        start = now - timedelta(hours=hours)
+        return self._repo.query_temperature_series(
+            cities=[c.name for c in self._cities],
+            start=start,
+            stop=now,
+            window_seconds=window_seconds,
         )

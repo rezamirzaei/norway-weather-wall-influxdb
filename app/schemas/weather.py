@@ -28,3 +28,21 @@ class WeatherRefreshResponse(BaseModel):
     skipped: bool = False
     retry_after_seconds: int | None = Field(default=None, ge=1)
     cities: list[str] = Field(default_factory=list)
+
+
+class WeatherTemperaturePoint(BaseModel):
+    city: str = Field(min_length=1, max_length=64)
+    timestamp: datetime
+    value: float
+
+
+class WeatherTemperatureSummary(BaseModel):
+    city: str = Field(min_length=1, max_length=64)
+    start: datetime
+    stop: datetime
+    count: int = Field(ge=0)
+    min: float | None = None
+    max: float | None = None
+    avg: float | None = None
+    first: float | None = None
+    last: float | None = None

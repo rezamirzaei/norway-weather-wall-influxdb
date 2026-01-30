@@ -4,7 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from app.models.measurement import MeasurementRecord, MeasurementSummaryRecord
-from app.models.weather import City, WeatherObservation
+from app.models.weather import (
+    City,
+    WeatherObservation,
+    WeatherTemperaturePoint,
+    WeatherTemperatureSummary,
+)
 
 
 @dataclass
@@ -113,6 +118,73 @@ class FakeWeatherRepository:
             results.append(candidates[0])
         results.sort(key=lambda r: r.city)
         return results
+
+    def query_temperature_series(
+        self,
+        *,
+        cities: list[str],
+        start: datetime,
+        stop: datetime,
+        window_seconds: int,
+    ) -> list[WeatherTemperaturePoint]:
+        window_seconds = max(int(window_seconds), 1)
+        buckets: dict[tuple[str, int], list[float]] = {}
+        for r in self._records:
+            if r.city not in cities:
+                continue
+            if r.air_temperature is None:
+                continue
+            if not (start <= r.timestamp <= stop):
+                continue
+            idx = int((r.timestamp - start).total_seconds() // window_seconds)
+            buckets.setdefault((r.city, idx), []).append(float(r.air_temperature))
+
+        points: list[WeatherTemperaturePoint] = []
+        for (city, idx), values in buckets.items():
+            ts = start + timedelta(seconds=idx * window_seconds)
+            points.append(
+                WeatherTemperaturePoint(
+                    city=city,
+                    timestamp=ts,
+                    value=sum(values) / len(values),
+                )
+            )
+        points.sort(key=lambda p: (p.city, p.timestamp))
+        return points
+
+    def query_temperature_summary(
+        self, *, cities: list[str], start: datetime, stop: datetime
+    ) -> list[WeatherTemperatureSummary]:
+        rows: list[WeatherTemperatureSummary] = []
+        for city in cities:
+            values = [
+                r
+                for r in self._records
+                if r.city == city
+                and r.air_temperature is not None
+                and start <= r.timestamp <= stop
+            ]
+            if not values:
+                continue
+            values.sort(key=lambda r: r.timestamp)
+            temps = [float(r.air_temperature) for r in values if r.air_temperature is not None]
+            if not temps:
+                continue
+            rows.append(
+                WeatherTemperatureSummary(
+                    city=city,
+                    start=start,
+                    stop=stop,
+                    count=len(temps),
+                    min=min(temps),
+                    max=max(temps),
+                    avg=sum(temps) / len(temps),
+                    first=temps[0],
+                    last=temps[-1],
+                )
+            )
+        rows.sort(key=lambda r: r.city)
+        return rows
 
 
 class FakeMetNoClient:

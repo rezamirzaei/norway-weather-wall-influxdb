@@ -27,3 +27,22 @@ class WeatherObservation:
     precipitation_amount_1h: float | None = None
     symbol_code: str | None = None
 
+
+@dataclass(frozen=True)
+class WeatherTemperaturePoint:
+    city: str
+    timestamp: datetime
+    value: float
+
+
+@dataclass(frozen=True)
+class WeatherTemperatureSummary:
+    city: str
+    start: datetime
+    stop: datetime
+    count: int
+    min: float | None
+    max: float | None
+    avg: float | None
+    first: float | None
+    last: float | None

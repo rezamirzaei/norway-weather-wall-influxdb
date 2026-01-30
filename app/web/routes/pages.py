@@ -94,7 +94,7 @@ def _weather_rows_payload(rows) -> list[dict[str, object]]:
             "lat": r.lat,
             "lon": r.lon,
             "timestamp": r.timestamp.astimezone(timezone.utc)
-            .isoformat()
+            .isoformat(timespec="seconds")
             .replace("+00:00", "Z"),
             "air_temperature": r.air_temperature,
             "relative_humidity": r.relative_humidity,
@@ -254,6 +254,63 @@ def weather_latest_json(
             detail="InfluxDB unavailable",
         ) from e
     return _weather_rows_payload(rows)
+
+
+def _iso_z(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+@router.get("/weather/temperature/summary.json", include_in_schema=False)
+def weather_temperature_summary_json(
+    _: Annotated[User, Depends(require_session_user)],
+    weather_service: WeatherIngestionService = Depends(get_weather_service),
+    hours: Annotated[int, Query(ge=1, le=24 * 14)] = 24,
+) -> list[dict[str, object]]:
+    try:
+        rows = weather_service.temperature_summary(hours=hours)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="InfluxDB unavailable",
+        ) from e
+    return [
+        {
+            "city": r.city,
+            "start": _iso_z(r.start),
+            "stop": _iso_z(r.stop),
+            "count": r.count,
+            "min": r.min,
+            "max": r.max,
+            "avg": r.avg,
+            "first": r.first,
+            "last": r.last,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/weather/temperature/trend.json", include_in_schema=False)
+def weather_temperature_trend_json(
+    _: Annotated[User, Depends(require_session_user)],
+    weather_service: WeatherIngestionService = Depends(get_weather_service),
+    hours: Annotated[int, Query(ge=1, le=24 * 2)] = 1,
+    window_seconds: Annotated[int, Query(ge=1, le=3600)] = 60,
+) -> list[dict[str, object]]:
+    try:
+        rows = weather_service.temperature_trend(hours=hours, window_seconds=window_seconds)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="InfluxDB unavailable",
+        ) from e
+    return [
+        {
+            "city": r.city,
+            "timestamp": _iso_z(r.timestamp),
+            "value": r.value,
+        }
+        for r in rows
+    ]
 
 
 @router.post(

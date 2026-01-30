@@ -35,7 +35,51 @@
     </section>
 
     <section class="card">
-      <h2>Table</h2>
+      <div
+        id="weather-analytics"
+        data-summary-url="/ui/weather/temperature/summary.json?hours=24"
+        data-trend-url="/ui/weather/temperature/trend.json?hours=1&window_seconds=60"
+        data-refresh-ms="15000"
+      >
+        <h2>InfluxDB Analytics</h2>
+        <p class="muted">
+          Powered by Flux queries: <code>aggregateWindow</code> (downsampling) and <code>reduce</code> (min/max/avg).
+        </p>
+
+        <div class="row">
+          <div>
+            <h3 style="margin: 12px 0 8px;">Last 24h temperature summary</h3>
+            <table class="compact">
+              <thead>
+                <tr>
+                  <th>City</th>
+                  <th>Min</th>
+                  <th>Avg</th>
+                  <th>Max</th>
+                  <th>First</th>
+                  <th>Last</th>
+                </tr>
+              </thead>
+              <tbody id="weather-summary-body">
+                <tr>
+                  <td colspan="6" class="muted">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <h3 style="margin: 12px 0 8px;">Last 60m trend (mean / minute)</h3>
+            <div class="chart">
+              <canvas id="weather-trend-chart" aria-label="Temperature trend chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <h2>Latest values</h2>
       <table>
         <thead>
           <tr>
@@ -50,8 +94,8 @@
           </tr>
         </thead>
         <tbody id="weather-table-body">
-          {% if rows and rows|length > 0 %}
-            {% for r in rows %}
+          {% if rows_payload and rows_payload|length > 0 %}
+            {% for r in rows_payload %}
               <tr>
                 <td>{{ r.city }}</td>
                 <td>{{ r.air_temperature }}</td>
@@ -60,7 +104,7 @@
                 <td>{{ r.air_pressure_at_sea_level }}</td>
                 <td>{{ r.precipitation_amount_1h }}</td>
                 <td>{{ r.symbol_code }}</td>
-                <td>{{ r.timestamp.isoformat() }}</td>
+                <td>{{ r.timestamp }}</td>
               </tr>
             {% endfor %}
           {% else %}
@@ -84,4 +128,6 @@
     window.WEATHER_ROWS = {{ rows_payload | tojson }};
   </script>
   <script src="{{ url_for('static', path='weather_map.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{{ url_for('static', path='weather_analytics.js') }}"></script>
 {% endblock %}

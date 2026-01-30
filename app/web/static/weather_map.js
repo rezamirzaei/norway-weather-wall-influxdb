@@ -128,7 +128,8 @@
     }
     renderTable(arr);
     if (updatedAtEl) {
-      updatedAtEl.textContent = new Date().toISOString().replace(".000Z", "Z");
+      const iso = new Date().toISOString();
+      updatedAtEl.textContent = `${iso.slice(0, 19)}Z`;
     }
   };
 
