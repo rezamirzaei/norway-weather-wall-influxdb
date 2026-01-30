@@ -5,6 +5,7 @@ This repo is a small “real‑world” demo app that:
 - securely logs you in (JWT for API + session/CSRF for UI)
 - fetches **Norwegian city weather** (MET Norway) and stores it as **time‑series** in **InfluxDB v2**
 - renders a server‑side MVC UI with a **live map** that updates every second
+- includes an **InfluxDB analytics** panel (24h min/avg/max + 60m downsampled trend)
 
 ## The story
 
@@ -22,6 +23,7 @@ InfluxDB is a good fit because:
 - it’s optimized for high‑write time‑series ingestion
 - it models “dimensions” naturally as **tags** (`city`, `country`, `device_id`)
 - it makes “latest point”, “last N points”, and time‑window queries efficient (Flux)
+- it supports built-in downsampling and aggregates (e.g. `aggregateWindow`, `reduce`) for dashboards
 
 ## Architecture (MVC + REST)
 
@@ -57,6 +59,17 @@ Upstream provider note:
 - The app therefore **throttles upstream fetches** using `APP_WEATHER_MIN_REFRESH_INTERVAL_SECONDS` (default 300s)
   and re-emits the latest known values each second.
 - If you *really* want to call MET every tick, set `APP_WEATHER_MIN_REFRESH_INTERVAL_SECONDS=0` (not recommended).
+
+## InfluxDB analytics (why it matters)
+
+The Weather Wall UI includes an “InfluxDB Analytics” panel that demonstrates common time-series query patterns:
+
+- **Latest per city**: server queries the newest point per city (Flux `last()` + `pivot()`).
+- **Downsampled trend**: “last 60m” temperature trend aggregated per minute (Flux `aggregateWindow(every: 60s, fn: mean)`).
+- **Window summary**: last 24h temperature `min/max/avg/first/last` (Flux `reduce`).
+
+These are the kinds of queries that become painful with generic SQL tables at high write rates, but are natural in
+InfluxDB.
 
 ## Quick start (Docker)
 
@@ -115,6 +128,20 @@ curl -s "http://127.0.0.1:8000/api/v1/weather/latest" \
   -H "Authorization: Bearer ${TOKEN}"
 ```
 
+24h temperature summary (per city):
+
+```bash
+curl -s "http://127.0.0.1:8000/api/v1/weather/temperature/summary?hours=24" \
+  -H "Authorization: Bearer ${TOKEN}"
+```
+
+60m downsampled temperature trend (mean per minute):
+
+```bash
+curl -s "http://127.0.0.1:8000/api/v1/weather/temperature/trend?hours=1&window_seconds=60" \
+  -H "Authorization: Bearer ${TOKEN}"
+```
+
 Force a provider refresh (bypasses throttling):
 
 ```bash
@@ -140,4 +167,3 @@ See `.env.example`. Important ones:
 - `APP_WEATHER_USER_AGENT`: MET Norway requires a descriptive User‑Agent
 - `APP_WEATHER_BACKGROUND_REFRESH_INTERVAL_SECONDS`: default `1` (live loop tick)
 - `APP_WEATHER_MIN_REFRESH_INTERVAL_SECONDS`: default `300` (provider fetch throttle)
-
